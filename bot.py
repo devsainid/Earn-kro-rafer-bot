@@ -3,7 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 BOT_TOKEN = "7893288883:AAEki6XqSMd7ClGjOkrTcZbU0vFBTBdBOiw"
-OWNER_ID = 123456789
+OWNER_ID = 6559745280
 CHANNELS = [
     ("Channel 1", "https://t.me/ThePterodactylMeme"),
     ("Channel 2", "https://t.me/animalin_tm_empire"),
