@@ -5,10 +5,11 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 BOT_TOKEN = "YOUR_BOT_TOKEN"
 OWNER_ID = 123456789
 CHANNELS = [
-    ("Channel 1", "https://t.me/your_channel1"),
-    ("Channel 2", "https://t.me/your_channel2"),
-    ("Channel 3", "https://t.me/your_channel3"),
+    ("Channel 1", "https://t.me/ThePterodactylMeme"),
+    ("Channel 2", "https://t.me/animalin_tm_empire"),
+    ("Channel 3", "https://t.me/lazy_guys_here"),
     ("Channel 4", "https://t.me/your_channel4")
+    ("Channel 5", "https://t.me/ThePterodactylMeme"),
 ]
 user_data = {}
 broadcast_mode = set()
