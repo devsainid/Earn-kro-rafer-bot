@@ -8,8 +8,9 @@ CHANNELS = [
     ("Channel 1", "https://t.me/ThePterodactylMeme"),
     ("Channel 2", "https://t.me/animalin_tm_empire"),
     ("Channel 3", "https://t.me/EARNING_SOME"),
-    ("Channel 4", "https://t.me/+T-VXIUFE3X44YTll")
-    ("Channel 5", "https://t.me/+CXZizIywslVkMzI1"),
+    ("Channel 4", "https://t.me/+T-VXIUFE3X44YTll"),  
+    ("Channel 5", "https://t.me/+CXZizIywslVkMzI1"),  
+]
 ]
 user_data = {}
 broadcast_mode = set()
