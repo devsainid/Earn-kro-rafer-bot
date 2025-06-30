@@ -2,14 +2,14 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
-BOT_TOKEN = "YOUR_BOT_TOKEN"
+BOT_TOKEN = "7893288883:AAEki6XqSMd7ClGjOkrTcZbU0vFBTBdBOiw"
 OWNER_ID = 123456789
 CHANNELS = [
     ("Channel 1", "https://t.me/ThePterodactylMeme"),
     ("Channel 2", "https://t.me/animalin_tm_empire"),
-    ("Channel 3", "https://t.me/lazy_guys_here"),
-    ("Channel 4", "https://t.me/your_channel4")
-    ("Channel 5", "https://t.me/ThePterodactylMeme"),
+    ("Channel 3", "https://t.me/EARNING_SOME"),
+    ("Channel 4", "https://t.me/+T-VXIUFE3X44YTll")
+    ("Channel 5", "https://t.me/+CXZizIywslVkMzI1"),
 ]
 user_data = {}
 broadcast_mode = set()
