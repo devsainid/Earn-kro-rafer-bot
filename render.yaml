@@ -9,4 +9,4 @@ services:
         value: 7893288883:AAEki6XqSMd7ClGjOkrTcZbU0vFBTBdBOiw
       - key: OWNER_ID
         value: "6559745280"
-    pythonVersion: 3.12.1  
+    pythonVersion: 3.11.8
