@@ -7,10 +7,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 OWNER_ID = int(os.getenv("OWNER_ID", "6559745280"))
 
 CHANNELS = [
-    ("Channel 1", "https://t.me/ThePterodactylMeme"),
-    ("Channel 2", "https://t.me/animalin_tm_empire"),
-    ("Channel 3", "https://t.me/EARNING_SOME"),
-    ("Channel 4", "https://t.me/+T-VXIUFE3X44YTll"),
+    ("Channel 1", "https://t.me/ThePterodactylMeme"), ("Channel 2", "https://t.me/animalin_tm_empire"),
+    ("Channel 3", "https://t.me/EARNING_SOME"), ("Channel 4", "https://t.me/+T-VXIUFE3X44YTll"),
     ("Channel 5", "https://t.me/+CXZizIywslVkMzI1")
 ]
 
@@ -24,33 +22,37 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if user_id not in user_data:
         user_data[user_id] = {"joined": False, "balance": 0, "referrals": [], "referrer": None}
-
         if args:
             referrer_id = int(args[0])
             if referrer_id != user_id and referrer_id in user_data:
                 user_data[user_id]["referrer"] = referrer_id
                 user_data[referrer_id]["balance"] += 5
                 user_data[referrer_id]["referrals"].append(user_id)
-                await context.bot.send_message(referrer_id, f"🎉 You earned ₹5! New balance: ₹{user_data[referrer_id]['balance']}")
-
+                await context.bot.send_message(
+                    referrer_id,
+                    f"🎉 You earned ₹5 from a referral!\nNew balance: ₹{user_data[referrer_id]['balance']}"
+                )
     await send_channel_buttons(update, context)
 
 async def send_channel_buttons(update, context):
     buttons = [[InlineKeyboardButton(name, url=url)] for name, url in CHANNELS]
     buttons.append([InlineKeyboardButton("✅ All Joined", callback_data="check_channels")])
+
+    text = "👋 Welcome! Join all the channels below to instantly get ₹10 signup bonus.\n\nThen share your referral link and earn ₹5 for every friend who joins!"
     
     if update.message:
-        await update.message.reply_text("👋 Please join these channels:", reply_markup=InlineKeyboardMarkup(buttons))
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(buttons))
     elif update.callback_query:
-        await update.callback_query.message.reply_text("👋 Please join these channels:", reply_markup=InlineKeyboardMarkup(buttons))
+        await update.callback_query.message.reply_text(text, reply_markup=InlineKeyboardMarkup(buttons))
 
 async def check_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
     joined_all = True
+
     for _, url in CHANNELS:
         if '+' in url:
-            continue  # Skip private channel check
+            continue  # Skip invite link check
         channel_username = url.split("/")[-1]
         try:
             member = await context.bot.get_chat_member(f"@{channel_username}", user_id)
@@ -67,7 +69,7 @@ async def check_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_data[user_id]["balance"] += 10
             await query.message.reply_text("✅ You have joined all channels! ₹10 signup bonus added.")
         await query.message.reply_text(
-            f"🔗 Here is your referral link:\nhttps://t.me/RaferXD_robot?start={user_id}\n\nInvite friends and get ₹5 per referral!"
+            f"🔗 Here is your referral link:\nhttps://t.me/RaferXD_robot?start={user_id}\n\nShare it with friends and earn ₹5 per referral!"
         )
     else:
         await query.message.reply_text("⚠️ Please join all channels to get your bonus.")
@@ -76,7 +78,9 @@ async def check_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    await update.message.reply_text(f"🔗 Your referral link:\nhttps://t.me/RaferXD_robot?start={user_id}")
+    await update.message.reply_text(
+        f"🔗 Your referral link:\nhttps://t.me/RaferXD_robot?start={user_id}"
+    )
 
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -117,7 +121,7 @@ async def broadcast_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     if user_id == OWNER_ID:
         broadcast_mode.add(user_id)
-        await query.message.reply_text("📬 Send the message to broadcast:")
+        await query.message.reply_text("📬 Now send the message to broadcast to all users.")
     await query.answer()
 
 async def handle_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -131,18 +135,20 @@ async def handle_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Broadcast sent to all users.")
         broadcast_mode.remove(user_id)
 
-from telegram.ext import ApplicationBuilder
-
+# Build App
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-# Handlers
+# Add Handlers
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("invite", invite))
 app.add_handler(CommandHandler("withdraw", withdraw))
+app.add_handler(CommandHandler("balance", balance))
 app.add_handler(CommandHandler("admin", admin))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_broadcast))
+app.add_handler(CallbackQueryHandler(broadcast_handler, pattern="broadcast"))
 app.add_handler(CallbackQueryHandler(check_channels, pattern="check_channels"))
 
+# Run
 if __name__ == "__main__":
     print("Bot is running...")
     app.run_polling()
