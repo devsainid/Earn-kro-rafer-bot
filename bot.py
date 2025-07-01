@@ -131,16 +131,18 @@ async def handle_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Broadcast sent to all users.")
         broadcast_mode.remove(user_id)
 
+from telegram.ext import ApplicationBuilder
+
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
+# Handlers
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("invite", invite))
-app.add_handler(CommandHandler("balance", balance))
 app.add_handler(CommandHandler("withdraw", withdraw))
 app.add_handler(CommandHandler("admin", admin))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_broadcast))
 app.add_handler(CallbackQueryHandler(check_channels, pattern="check_channels"))
-app.add_handler(CallbackQueryHandler(broadcast_handler, pattern="broadcast"))
-app.add_handler(MessageHandler(filters.TEXT, handle_broadcast))
 
 if __name__ == "__main__":
+    print("Bot is running...")
     app.run_polling()
