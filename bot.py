@@ -1,180 +1,118 @@
-import logging
-import os
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (
-    ApplicationBuilder, CommandHandler, CallbackQueryHandler,
-    ContextTypes, MessageHandler, filters
-)
+import logging import os import firebase_admin from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update from telegram.ext import ( ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters, ConversationHandler ) from firebase_admin import credentials, db
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-OWNER_ID = int(os.getenv("OWNER_ID", "6559745280"))
+Load ENV variables
 
-CHANNELS = [
-    ("JOIN 🕯️", "https://t.me/+T-VXIUFE3X44YTll"),
-    ("JOIN 🕯️", "https://t.me/EARNING_SOME"),
-    ("JOIN 🕯️", "https://t.me/+T-VXIUFE3X44YTll"),
-    ("JOIN 🕯️", "https://t.me/+CXZizIywslVkMzI1")
-    ("JOIN 🕯️", "https://t.me/ThePterodactylMeme")
-]
+BOT_TOKEN = os.getenv("BOT_TOKEN") OWNER_ID = int(os.getenv("OWNER_ID", "6559745280"))
 
-user_data = {}
-broadcast_mode = set()
+Firebase setup
 
-logging.basicConfig(level=logging.INFO)
+cred = credentials.Certificate("firebase_key.json") firebase_admin.initialize_app(cred, { 'databaseURL': 'https://earn-kro-ac76f-default-rtdb.firebaseio.com/' }) db_ref = db.reference("users") banned_ref = db.reference("banned_users")
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    args = context.args
+Channels
 
-    # Initialize new user
-    if user_id not in user_data:
-        user_data[user_id] = {
-            "joined": False,
-            "balance": 0,
-            "referrals": [],
-            "referrer": None
-        }
+CHANNELS = [ ("JOIN 🕯️", "https://t.me/+T-VXIUFE3X44YTll"), ("JOIN 🕯️", "https://t.me/EARNING_SOME"), ("JOIN 🕯️", "https://t.me/+CXZizIywslVkMzI1"), ("JOIN 🕯️", "https://t.me/ThePterodactylMeme") ]
 
-        # Handle referral
-        if args:
-            try:
-                referrer_id = int(args[0])
-                if referrer_id != user_id:
-                    if referrer_id not in user_data:
-                        user_data[referrer_id] = {
-                            "joined": False,
-                            "balance": 0,
-                            "referrals": [],
-                            "referrer": None
-                        }
-                    user_data[user_id]["referrer"] = referrer_id
-                    user_data[referrer_id]["balance"] += 5
-                    user_data[referrer_id]["referrals"].append(user_id)
-                    await context.bot.send_message(
-                        chat_id=referrer_id,
-                        text=f"🎉 You earned ₹5 from a referral!\n💰 New balance: ₹{user_data[referrer_id]['balance']}"
-                    )
-            except Exception as e:
-                logging.error(f"Referral error: {e}")
+broadcast_mode = set() logging.basicConfig(level=logging.INFO) BAN_WAITING_ID = 1
 
-    await send_channel_buttons(update, context)
+---------------------- Utilities ------------------------
 
-async def send_channel_buttons(update, context):
-    buttons = [[InlineKeyboardButton(name, url=url)] for name, url in CHANNELS]
-    buttons.append([InlineKeyboardButton("✅ All Joined", callback_data="check_channels")])
+def is_banned(user_id): banned = banned_ref.get() or {} return str(user_id) in banned
 
-    message = (
-        "👋 Welcome! Join all the channels below to instantly get ₹10 signup bonus.\n\n"
-        "Then share your referral link and earn ₹5 for every friend who joins!"
-    )
+def ignore_banned(func): async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE): user_id = update.effective_user.id if is_banned(user_id): return return await func(update, context) return wrapper
 
-    if update.message:
-        await update.message.reply_text(message, reply_markup=InlineKeyboardMarkup(buttons))
-    elif update.callback_query:
-        await update.callback_query.message.reply_text(message, reply_markup=InlineKeyboardMarkup(buttons))
+def get_user_data(user_id): return db_ref.child(str(user_id)).get() or { "joined": False, "balance": 0, "referrals": [], "referrer": None }
 
-async def check_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = query.from_user.id
-    joined_all = True
-    for _, url in CHANNELS:
-        if '+' in url:
-            continue
-        channel_username = url.split("/")[-1]
-        try:
-            member = await context.bot.get_chat_member(f"@{channel_username}", user_id)
-            if member.status == "left":
-                joined_all = False
-                break
-        except:
+def save_user_data(user_id, data): db_ref.child(str(user_id)).set(data)
+
+---------------------- Handlers ------------------------
+
+@ignore_banned async def start(update: Update, context: ContextTypes.DEFAULT_TYPE): user_id = update.effective_user.id args = context.args data = get_user_data(user_id)
+
+if not data["referrer"] and args:
+    referrer_id = int(args[0])
+    if referrer_id != user_id:
+        ref_data = get_user_data(referrer_id)
+        ref_data["balance"] += 5
+        ref_data["referrals"].append(user_id)
+        save_user_data(referrer_id, ref_data)
+        await context.bot.send_message(referrer_id, f"🎉 You earned ₹5 from a referral!\n💰 Balance: ₹{ref_data['balance']}")
+        data["referrer"] = referrer_id
+
+save_user_data(user_id, data)
+await send_channel_buttons(update, context)
+
+async def send_channel_buttons(update, context): buttons = [[InlineKeyboardButton(name, url=url)] for name, url in CHANNELS] buttons.append([InlineKeyboardButton("✅ All Joined", callback_data="check_channels")]) message = "👋 Join all channels below to get ₹10 signup bonus. Share your link to earn ₹5 per referral."
+
+if update.message:
+    await update.message.reply_text(message, reply_markup=InlineKeyboardMarkup(buttons))
+elif update.callback_query:
+    await update.callback_query.message.reply_text(message, reply_markup=InlineKeyboardMarkup(buttons))
+
+@ignore_banned async def check_channels(update: Update, context: ContextTypes.DEFAULT_TYPE): query = update.callback_query user_id = query.from_user.id joined_all = True
+
+for _, url in CHANNELS:
+    if '+' in url:
+        continue
+    channel_username = url.split("/")[-1]
+    try:
+        member = await context.bot.get_chat_member(f"@{channel_username}", user_id)
+        if member.status == "left":
             joined_all = False
             break
+    except:
+        joined_all = False
+        break
 
-    if joined_all:
-        if not user_data[user_id]["joined"]:
-            user_data[user_id]["joined"] = True
-            user_data[user_id]["balance"] += 10
-            await query.message.reply_text("✅ You have joined all channels! ₹10 signup bonus added.")
-        await query.message.reply_text(
-            f"🔗 Here is your referral link:\nhttps://t.me/RaferXD_robot?start={user_id}\n\n"
-            "Invite friends and get ₹5 per referral!"
-        )
-    else:
-        await query.message.reply_text("⚠️ Please join all channels to get your bonus.")
-        await send_channel_buttons(update, context)
-    await query.answer()
+data = get_user_data(user_id)
+if joined_all:
+    if not data["joined"]:
+        data["joined"] = True
+        data["balance"] += 10
+        save_user_data(user_id, data)
+        await query.message.reply_text("✅ Joined all channels! ₹10 added.")
+    await query.message.reply_text(f"🔗 Referral link:\nhttps://t.me/RaferXD_robot?start={user_id}")
+else:
+    await query.message.reply_text("⚠️ Join all channels to get bonus.")
+    await send_channel_buttons(update, context)
+await query.answer()
 
-async def invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    await update.message.reply_text(f"🔗 Your referral link:\nhttps://t.me/RaferXD_robot?start={user_id}")
+@ignore_banned async def invite(update: Update, context: ContextTypes.DEFAULT_TYPE): user_id = update.effective_user.id await update.message.reply_text(f"🔗 Your referral link:\nhttps://t.me/RaferXD_robot?start={user_id}")
 
-async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    bal = user_data.get(user_id, {}).get("balance", 0)
-    await update.message.reply_text(f"💰 Your current balance: ₹{bal}")
+@ignore_banned async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE): user_id = update.effective_user.id data = get_user_data(user_id) await update.message.reply_text(f"💰 Your current balance: ₹{data['balance']}")
 
-async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    bal = user_data.get(user_id, {}).get("balance", 0)
-    if bal < 50:
-        await update.message.reply_text("❌ Minimum withdrawal amount is ₹50.")
-        return
+@ignore_banned async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE): user_id = update.effective_user.id data = get_user_data(user_id) bal = data.get("balance", 0) if bal < 50: await update.message.reply_text("❌ Minimum withdrawal is ₹50.") return
 
-    await update.message.reply_text("🧾 Please send your UPI ID to process the withdrawal.")
+await update.message.reply_text("🧾 Send your UPI ID:")
 
-    async def collect_upi(upd: Update, ctx: ContextTypes.DEFAULT_TYPE):
-        upi = upd.message.text
-        await upd.message.reply_text("✅ Withdrawal request received. It will be processed within 24 hours.")
-        await ctx.bot.send_message(
-            chat_id=OWNER_ID,
-            text=f"💸 Withdrawal Request:\nUser: {upd.effective_user.mention_html()}\n"
-                 f"Amount: ₹{bal}\nUPI: {upi}",
-            parse_mode="HTML"
-        )
-        ctx.application.remove_handler(handler)
+async def collect_upi(upd: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    upi = upd.message.text
+    await upd.message.reply_text("✅ Request received. Will be processed in 24 hours.")
+    await ctx.bot.send_message(
+        chat_id=OWNER_ID,
+        text=f"💸 Withdrawal Request:\nUser: {upd.effective_user.mention_html()}\nTelegram ID: <code>{user_id}</code>\nAmount: ₹{bal}\nUPI: <code>{upi}</code>",
+        parse_mode="HTML"
+    )
+    ctx.application.remove_handler(handler)
 
-    handler = MessageHandler(filters.TEXT & filters.USER(user_id), collect_upi)
-    context.application.add_handler(handler)
+handler = MessageHandler(filters.TEXT & filters.USER(user_id), collect_upi)
+context.application.add_handler(handler)
 
-async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id != OWNER_ID:
-        return
-    button = InlineKeyboardMarkup([[InlineKeyboardButton("📢 Broadcast", callback_data="broadcast")]])
-    await update.message.reply_text("🔧 Admin Panel", reply_markup=button)
+@ignore_banned async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE): if update.effective_user.id != OWNER_ID: return buttons = InlineKeyboardMarkup([ [InlineKeyboardButton("📢 Broadcast", callback_data="broadcast")], [InlineKeyboardButton("📛 Ban", callback_data="ban_user")] ]) await update.message.reply_text("🔧 Admin Panel", reply_markup=buttons)
 
-async def broadcast_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = query.from_user.id
-    if user_id == OWNER_ID:
-        broadcast_mode.add(user_id)
-        await query.message.reply_text("📬 Send the message to broadcast:")
-    await query.answer()
+async def broadcast_handler(update: Update, context: ContextTypes.DEFAULT_TYPE): query = update.callback_query if query.from_user.id == OWNER_ID: broadcast_mode.add(query.from_user.id) await query.message.reply_text("📬 Send the broadcast message:") await query.answer()
 
-async def handle_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id in broadcast_mode:
-        for uid in user_data:
-            try:
-                await context.bot.send_message(uid, update.message.text)
-            except:
-                pass
-        await update.message.reply_text("✅ Broadcast sent to all users.")
-        broadcast_mode.remove(user_id)
+async def handle_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE): if update.effective_user.id in broadcast_mode: all_users = db_ref.get() or {} for uid in all_users: if not is_banned(uid): try: await context.bot.send_message(uid, update.message.text) except: pass await update.message.reply_text("✅ Broadcast sent.") broadcast_mode.remove(update.effective_user.id)
 
-# Create app
+async def ban_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE): query = update.callback_query if query.from_user.id != OWNER_ID: return await query.message.reply_text("🛑 Send the user ID to ban:") await query.answer() return BAN_WAITING_ID
+
+async def process_ban(update: Update, context: ContextTypes.DEFAULT_TYPE): uid = update.message.text.strip() banned_ref.update({uid: True}) await update.message.reply_text(f"✅ User {uid} banned successfully.") return ConversationHandler.END
+
+------------------- Application ----------------------
+
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-# Handlers
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("invite", invite))
-app.add_handler(CommandHandler("balance", balance))
-app.add_handler(CommandHandler("withdraw", withdraw))
-app.add_handler(CommandHandler("admin", admin))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_broadcast))
-app.add_handler(CallbackQueryHandler(check_channels, pattern="check_channels"))
-app.add_handler(CallbackQueryHandler(broadcast_handler, pattern="broadcast"))
+app.add_handler(CommandHandler("start", ignore_banned(start))) app.add_handler(CommandHandler("invite", ignore_banned(invite))) app.add_handler(CommandHandler("balance", ignore_banned(balance))) app.add_handler(CommandHandler("withdraw", ignore_banned(withdraw))) app.add_handler(CommandHandler("admin", admin)) app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, ignore_banned(handle_broadcast))) app.add_handler(CallbackQueryHandler(ignore_banned(check_channels), pattern="check_channels")) app.add_handler(CallbackQueryHandler(ignore_banned(broadcast_handler), pattern="broadcast"))
 
-if __name__ == "__main__":
-    print("Bot is running...")
-    app.run_polling()
+ban_conv = ConversationHandler( entry_points=[CallbackQueryHandler(ban_button_handler, pattern="ban_user")], states={ BAN_WAITING_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_ban)] }, fallbacks=[] ) app.add_handler(ban_conv)
+
+if name == "main": print("Bot is running...") app.run_polling()
