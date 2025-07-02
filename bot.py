@@ -1,6 +1,8 @@
 import logging
 import os
 import firebase_admin
+from flask import Flask
+import threading
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, CallbackQueryHandler,
@@ -226,6 +228,17 @@ ban_conv = ConversationHandler(
 )
 app.add_handler(ban_conv)
 
+# Flask keep_alive server for Replit + UptimeRobot
+def keep_alive():
+    server = Flask("")
+
+    @server.route("/")
+    def home():
+        return "Bot is alive!"
+
+    threading.Thread(target=server.run, kwargs={"host": "0.0.0.0", "port": 8080}).start()
+
 if __name__ == "__main__":
+    keep_alive()
     print("Bot is running...")
     app.run_polling()
