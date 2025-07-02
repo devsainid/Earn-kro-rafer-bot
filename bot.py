@@ -14,6 +14,7 @@ CHANNELS = [
     ("JOIN 🕯️", "https://t.me/EARNING_SOME"),
     ("JOIN 🕯️", "https://t.me/+T-VXIUFE3X44YTll"),
     ("JOIN 🕯️", "https://t.me/+CXZizIywslVkMzI1")
+    ("JOIN 🕯️", "https://t.me/ThePterodactylMeme")
 ]
 
 user_data = {}
