@@ -6,7 +6,7 @@ services:
     startCommand: python bot.py
     envVars:
       - key: BOT_TOKEN
-        value: 
+        value: 7893288883:AAF7E5M2vde4Eg70MPSZwWUgH_yKjOWnjb8
       - key: OWNER_ID
         value: "6559745280"
       - key: PORT
